@@ -1,0 +1,14 @@
+{
+  "naqee": {
+    "baseline_ear": 0.2940489210443943,
+    "baseline_pitch": -140.0713087073445,
+    "ear_threshold": 0.2205366907832957,
+    "pitch_down_threshold": -155.0713087073445
+  },
+  "test_driver": {
+    "baseline_ear": 0.3891021645821764,
+    "baseline_pitch": 16.24612946651962,
+    "ear_threshold": 0.2918266234366323,
+    "pitch_down_threshold": 1.2461294665196192
+  }
+}

@@ -1,0 +1,12 @@
+===== SESSION SUMMARY =====
+Duration: 30.9 sec
+Total Frames Analyzed: 908
+Drowsy Events (distinct triggers): 0
+Frames Drowsy: 0 (0.0% of session)
+Average PERCLOS: 2.8%
+Max PERCLOS: 7.3%
+Total Blinks: 10
+Total Yawns: 0
+Calibration Baseline EAR: 0.210
+EAR Threshold Used: 0.157
+============================

@@ -1,0 +1,28 @@
+{
+  "MAR_THRESHOLD": 0.6,
+  "EAR_CONSEC_SECONDS": 0.5,
+  "PITCH_CONSEC_SECONDS": 0.7,
+  "WINDOW_SECONDS": 30,
+  "ALERT_COOLDOWN": 5,
+  "CALIBRATION_SECONDS": 8,
+  "EAR_BASELINE_RATIO": 0.75,
+  "PITCH_BASELINE_OFFSET": 15,
+  "EAR_CONSEC_FRAMES": 3,
+  "PITCH_CONSEC_FRAMES": 5,
+  "FUSION_WEIGHTS": {
+    "EAR": 0.4,
+    "PERCLOS": 0.3,
+    "PITCH": 0.2,
+    "YAWN": 0.1
+  },
+  "FUSION_THRESHOLD": 0.5,
+  "NOTIFICATIONS": {
+    "ENABLED": false,
+    "DROWSY_EVENT_TRIGGER_COUNT": 3,
+    "SENDER_EMAIL": "youraddress@gmail.com",
+    "SENDER_APP_PASSWORD": "your16charapppassword",
+    "RECIPIENT_EMAIL": "emergencycontact@example.com",
+    "RECIPIENT_SMS_GATEWAY": "1234567890@vtext.com",
+    "SEND_ONCE_PER_SESSION": true
+  }
+}

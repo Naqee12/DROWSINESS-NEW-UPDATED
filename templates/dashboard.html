@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DriveGuard AI – Driver Safety Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- Sidebar Navigation -->
+  <aside id="sidebar" class="sidebar" role="navigation" aria-label="Main navigation">
+    <div class="sidebar-header">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32">
+          <rect width="32" height="32" rx="8" fill="currentColor"/>
+          <path d="M8 16C8 11.5817 11.5817 8 16 8C20.4183 8 24 11.5817 24 16C24 20.4183 20.4183 24 16 24C11.5817 24 8 20.4183 8 16Z" stroke="white" stroke-width="2"/>
+          <path d="M16 10V22M10 16H22" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="logo-text">DriveGuard AI</span>
+    </div>
+    <nav class="sidebar-nav">
+      <ul class="nav-list" role="list">
+        <li><a href="#" class="nav-link active" data-page="dashboard" aria-current="page">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <span>Dashboard</span>
+          </a></li>
+        <li><a href="#" class="nav-link" data-page="analytics">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 6-6"/></svg>
+            <span>Analytics</span>
+          </a></li>
+        <li><a href="#" class="nav-link" data-page="sessions">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h12M6 12h12M6 16h8"/></svg>
+            <span>Sessions</span>
+          </a></li>
+        <li><a href="#" class="nav-link" data-page="reports">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span>Reports</span>
+          </a></li>
+        <li><a href="#" class="nav-link" data-page="settings">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>Settings</span>
+          </a></li>
+      </ul>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="version">v1.0.0</div>
+    </div>
+  </aside>
+
+  <!-- Mobile sidebar overlay -->
+  <div id="sidebar-overlay" class="sidebar-overlay" aria-hidden="true"></div>
+
+  <!-- Main Layout -->
+  <div class="app-layout">
+    <!-- Header -->
+    <header class="app-header" role="banner">
+      <button id="menu-toggle" class="menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="header-title">
+        <h1 id="page-title">Dashboard</h1>
+      </div>
+      <div class="header-actions">
+        <div class="status-indicator" id="global-status" role="status" aria-live="polite">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span class="status-text">Normal</span>
+        </div>
+        <button id="recalibrate-btn" class="btn btn-primary" aria-label="Recalibrate detection">Recalibrate</button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-content" class="app-main" role="main">
+      <!-- Safety Status Banner -->
+      <section class="safety-banner" id="safety-banner" aria-live="assertive" aria-atomic="true" hidden>
+        <div class="banner-content">
+          <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div class="banner-text">
+            <strong id="banner-title">Warning</strong>
+            <span id="banner-message">Drowsiness detected</span>
+          </div>
+        </div>
+        <button class="banner-dismiss" aria-label="Dismiss warning">&times;</button>
+      </section>
+
+      <!-- Metric Cards Grid -->
+      <section class="metrics-grid" aria-label="Key metrics">
+        <article class="metric-card" data-metric="ear">
+          <div class="metric-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
+          <div class="metric-info">
+            <p class="metric-label">Eye Aspect Ratio</p>
+            <p class="metric-value" id="metric-ear">--</p>
+            <p class="metric-unit">ratio</p>
+          </div>
+          <div class="metric-trend" aria-hidden="true">
+            <svg class="trend-sparkline" viewBox="0 0 60 30" aria-hidden="true"><polyline fill="none" stroke="currentColor" stroke-width="2" points=""/></svg>
+          </div>
+        </article>
+
+        <article class="metric-card" data-metric="mar">
+          <div class="metric-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>
+          </div>
+          <div class="metric-info">
+            <p class="metric-label">Mouth Aspect Ratio</p>
+            <p class="metric-value" id="metric-mar">--</p>
+            <p class="metric-unit">ratio</p>
+          </div>
+          <div class="metric-trend" aria-hidden="true">
+            <svg class="trend-sparkline" viewBox="0 0 60 30" aria-hidden="true"><polyline fill="none" stroke="currentColor" stroke-width="2" points=""/></svg>
+          </div>
+        </article>
+
+        <article class="metric-card" data-metric="perclos">
+          <div class="metric-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          </div>
+          <div class="metric-info">
+            <p class="metric-label">PERCLOS</p>
+            <p class="metric-value" id="metric-perclos">--</p>
+            <p class="metric-unit">%</p>
+          </div>
+          <div class="metric-trend" aria-hidden="true">
+            <svg class="trend-sparkline" viewBox="0 0 60 30" aria-hidden="true"><polyline fill="none" stroke="currentColor" stroke-width="2" points=""/></svg>
+          </div>
+        </article>
+
+        <article class="metric-card" data-metric="fusion">
+          <div class="metric-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><polyline points="12 2 12 22"/></svg>
+          </div>
+          <div class="metric-info">
+            <p class="metric-label">Fusion Score</p>
+            <p class="metric-value" id="metric-fusion">--</p>
+            <p class="metric-unit">0–1</p>
+          </div>
+          <div class="metric-trend" aria-hidden="true">
+            <svg class="trend-sparkline" viewBox="0 0 60 30" aria-hidden="true"><polyline fill="none" stroke="currentColor" stroke-width="2" points=""/></svg>
+          </div>
+        </article>
+
+        <article class="metric-card" data-metric="blinks">
+          <div class="metric-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
+          <div class="metric-info">
+            <p class="metric-label">Blink Count</p>
+            <p class="metric-value" id="metric-blinks">--</p>
+            <p class="metric-unit">total</p>
+          </div>
+        </article>
+
+        <article class="metric-card" data-metric="yawns">
+          <div class="metric-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>
+          </div>
+          <div class="metric-info">
+            <p class="metric-label">Yawn Count</p>
+            <p class="metric-value" id="metric-yawns">--</p>
+            <p class="metric-unit">total</p>
+          </div>
+        </article>
+      </section>
+
+      <!-- Video Feed & Details -->
+      <section class="content-grid" aria-label="Live feed and details">
+        <div class="video-panel card">
+          <div class="card-header">
+            <h2>Live Camera Feed</h2>
+            <div class="card-actions">
+              <button id="fullscreen-btn" class="btn btn-ghost" aria-label="Toggle fullscreen">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="video-container">
+            <img id="video-feed" src="/video_feed" alt="Driver camera feed">
+            <div id="video-placeholder" class="video-placeholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M8 12l3 3 6-6"/><circle cx="12" cy="12" r="1"/></svg>
+              <p>Connecting to camera…</p>
+            </div>
+          </div>
+          <div class="video-overlay" id="video-overlay" aria-hidden="true"></div>
+        </div>
+
+        <div class="details-panel card">
+          <div class="card-header">
+            <h2>Session Details</h2>
+          </div>
+          <div class="details-grid">
+            <div class="detail-item">
+              <label>Session Time</label>
+              <output id="detail-session-time">00:00:00</output>
+            </div>
+            <div class="detail-item">
+              <label>Calibration</label>
+              <output id="detail-calibration">Not started</output>
+            </div>
+            <div class="detail-item">
+              <label>Head Pitch</label>
+              <output id="detail-pitch">--°</output>
+            </div>
+            <div class="detail-item">
+              <label>Phone Detection</label>
+              <output id="detail-phone">Off</output>
+            </div>
+            <div class="detail-item">
+              <label>Drowsy Events</label>
+              <output id="detail-drowsy-events">0</output>
+            </div>
+            <div class="detail-item">
+              <label>Fatigue Warning</label>
+              <output id="detail-fatigue"></output>
+            </div>
+          </div>
+
+          <div class="card-divider"></div>
+
+          <div class="controls-group">
+            <h3>Phone Detection</h3>
+            <div class="control-row phone-status" id="phone-status">
+              <span class="phone-status-indicator" id="phone-status-indicator" aria-hidden="true"></span>
+              <span class="phone-status-text" id="phone-status-text">OFF — No phone detected</span>
+            </div>
+
+            <div class="card-divider"></div>
+
+            <h3>Driver Profile</h3>
+            <div class="control-row">
+              <label for="driver-name" class="visually-hidden">Driver name</label>
+              <input type="text" id="driver-name" placeholder="Driver name" aria-label="Driver name">
+              <button id="save-profile-btn" class="btn btn-secondary">Save Profile</button>
+            </div>
+            <div class="control-row">
+              <a id="download-csv" href="/download_csv" class="btn btn-secondary" download>Download CSV</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-label="Notifications"></div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

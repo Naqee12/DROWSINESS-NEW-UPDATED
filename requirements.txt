@@ -1,0 +1,15 @@
+opencv-python
+mediapipe==0.10.21
+ultralytics
+numpy
+pillow
+matplotlib
+reportlab
+pyttsx3
+flask
+SpeechRecognition
+pandas
+scikit-learn
+streamlit
+streamlit-webrtc
+av
