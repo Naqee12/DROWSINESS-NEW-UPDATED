@@ -1,4 +1,4 @@
-opencv-python
+opencv-contrib-python
 mediapipe==0.10.21
 ultralytics
 numpy
