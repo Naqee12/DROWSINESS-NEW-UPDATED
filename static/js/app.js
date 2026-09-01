@@ -30,7 +30,9 @@
       perclos: [],
       fusion: []
     },
-    videoLoaded: false
+    videoLoaded: false,
+    driverRecognized: false,
+    enrollmentModalShown: false
   };
 
   /* ---------- DOM References ---------- */
@@ -81,7 +83,14 @@
       driverName: document.getElementById('driver-name'),
       saveProfileBtn: document.getElementById('save-profile-btn'),
       downloadCsv: document.getElementById('download-csv'),
-      toastContainer: document.getElementById('toast-container')
+      toastContainer: document.getElementById('toast-container'),
+      driverRecognitionStatus: document.getElementById('driver-recognition-status'),
+      enrollModal: document.getElementById('enroll-modal'),
+      enrollName: document.getElementById('enroll-name'),
+      enrollStartBtn: document.getElementById('enroll-start'),
+      enrollCancelBtn: document.getElementById('enroll-cancel'),
+      enrollModalClose: document.querySelector('#enroll-modal .modal-close'),
+      enrollModalBackdrop: document.querySelector('#enroll-modal .modal-backdrop')
     });
   }
 
@@ -312,6 +321,103 @@
   function initControls() {
     els.recalibrateBtn.addEventListener('click', requestRecalibrate);
     els.saveProfileBtn.addEventListener('click', saveProfile);
+    initEnrollmentModal();
+  }
+
+  function initEnrollmentModal() {
+    const closeModal = () => {
+      els.enrollModal.hidden = true;
+      els.enrollName.value = '';
+      state.enrollmentModalShown = false;
+    };
+
+    els.enrollModalClose?.addEventListener('click', closeModal);
+    els.enrollModalBackdrop?.addEventListener('click', closeModal);
+    els.enrollCancelBtn?.addEventListener('click', closeModal);
+
+    els.enrollStartBtn?.addEventListener('click', async () => {
+      const name = els.enrollName.value.trim();
+      if (!name) {
+        showToast('Enter a name to enroll', 'warning');
+        return;
+      }
+      closeModal();
+      await startEnrollment(name);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !els.enrollModal.hidden) {
+        closeModal();
+      }
+    });
+  }
+
+  async function startEnrollment(name) {
+    showToast(`Starting enrollment for ${name}...`, 'info');
+    try {
+      const res = await fetch('/enroll_driver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast(data.message || `Enrollment started for ${name}`, 'success');
+        // Poll for enrollment completion (simple approach: wait a bit then check known drivers)
+        setTimeout(async () => {
+          try {
+            const driversRes = await fetch('/known_drivers');
+            const driversData = await driversRes.json();
+            if (driversData.drivers.includes(name)) {
+              showToast(`${name} enrolled successfully!`, 'success');
+              // Auto-fill driver name field
+              els.driverName.value = name;
+            }
+          } catch (_) {}
+        }, 25000); // ~20 samples at ~30fps with recognition every 15 frames = ~10 seconds, give buffer
+      } else {
+        showToast('Enrollment failed: ' + (data.error || 'Unknown'), 'error');
+      }
+    } catch (_) {
+      showToast('Network error during enrollment', 'error');
+    }
+  }
+
+  function showEnrollmentModal() {
+    if (state.enrollmentModalShown) return;
+    state.enrollmentModalShown = true;
+    els.enrollModal.hidden = false;
+    // Focus the input after modal animation
+    setTimeout(() => els.enrollName.focus(), 150);
+  }
+
+  function updateDriverRecognition(metrics) {
+    const statusEl = els.driverRecognitionStatus;
+    if (!statusEl) return;
+
+    const recognized = metrics.driver_recognized && metrics.driver_recognized !== 'Unknown';
+    const confidence = metrics.driver_confidence || 0;
+    const profileLoaded = metrics.driver_profile_loaded;
+
+    if (recognized) {
+      statusEl.className = 'driver-recognition-status recognized';
+      statusEl.innerHTML = `<span class="recognition-dot" aria-hidden="true"></span>Driver: ${metrics.driver_recognized} (conf: ${confidence.toFixed(1)})${profileLoaded ? ' ✓ Profile loaded' : ''}`;
+      state.driverRecognized = true;
+
+      // Auto-fill driver name if profile was loaded
+      if (profileLoaded && els.driverName.value === '') {
+        els.driverName.value = metrics.driver_recognized;
+      }
+    } else if (metrics.driver_recognized === 'Unknown' && !state.driverRecognized && !state.calibrating && !state.enrollmentModalShown) {
+      statusEl.className = 'driver-recognition-status unknown';
+      statusEl.innerHTML = `<span class="recognition-dot" aria-hidden="true"></span>Driver not recognized`;
+      // Show enrollment modal after a brief delay (only once per session)
+      setTimeout(() => {
+        if (!state.driverRecognized && !state.enrollmentModalShown) {
+          showEnrollmentModal();
+        }
+      }, 3000);
+    }
   }
 
   async function requestRecalibrate() {
@@ -394,6 +500,7 @@
         els.pageTitle.textContent = `Calibrating… ${m.calib_remaining}s`;
         updateGlobalStatus('NORMAL');
         hideSafetyBanner();
+        updateDriverRecognition(m);
       } else {
         if (state.calibrating) {
           state.calibrating = false;
@@ -405,6 +512,7 @@
         updateGlobalStatus(m.severity);
         handleAlert(m);
         clearAlertIfNeeded(m.severity);
+        updateDriverRecognition(m);
       }
     } catch (err) {
       console.warn('Metrics poll failed:', err);

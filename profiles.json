@@ -10,5 +10,11 @@
     "baseline_pitch": 16.24612946651962,
     "ear_threshold": 0.2918266234366323,
     "pitch_down_threshold": 1.2461294665196192
+  },
+  "TestDriver": {
+    "baseline_ear": 0.28,
+    "baseline_pitch": 0.0,
+    "ear_threshold": 0.21,
+    "pitch_down_threshold": -15
   }
 }

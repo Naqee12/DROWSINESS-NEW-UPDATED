@@ -8,11 +8,14 @@ import threading
 from collections import deque
 
 from flask import Flask, Response, jsonify, request, render_template, send_file
-from mediapipe.python.solutions import face_mesh as mp_face_mesh_module
+from mediapipe.tasks.python.vision import FaceLandmarker, FaceLandmarkerOptions
+from mediapipe.tasks.python import BaseOptions
+from mediapipe import Image, ImageFormat
 from ultralytics import YOLO
 
 from config_loader import load_config
 from notifier import send_drowsy_alert
+import face_id
 
 CFG = load_config()
 
@@ -25,6 +28,8 @@ W_PERCLOS = CFG["FUSION_WEIGHTS"]["PERCLOS"]
 W_PITCH = CFG["FUSION_WEIGHTS"]["PITCH"]
 W_YAWN = CFG["FUSION_WEIGHTS"]["YAWN"]
 
+# FaceLandmarker uses 478 landmarks (468 face mesh + 10 iris)
+# The first 468 are compatible with the old FaceMesh indices
 LEFT_EYE = [362, 385, 387, 263, 373, 380]
 RIGHT_EYE = [33, 160, 158, 133, 153, 144]
 NOSE_TIP, CHIN = 1, 152
@@ -50,6 +55,8 @@ SEVERITY_COLORS = {
     "DROWSY": "#fb8c00",
     "CRITICAL": "#e53935"
 }
+
+RECOG_INTERVAL_FRAMES = 15
 
 
 def euclidean(p1, p2):
@@ -87,10 +94,6 @@ def get_head_pose(landmarks, w, h):
         MODEL_POINTS, image_points, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE)
     rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
     
-    # Extract Euler angles from rotation matrix directly for consistent pitch
-    # Pitch: rotation around X-axis (nodding up/down)
-    # Yaw: rotation around Y-axis (turning left/right)
-    # Roll: rotation around Z-axis (tilting)
     pitch = np.arctan2(-rotation_matrix[2, 0], 
                        np.sqrt(rotation_matrix[2, 1]**2 + rotation_matrix[2, 2]**2)) * 180.0 / np.pi
     yaw = np.arctan2(rotation_matrix[1, 0], rotation_matrix[0, 0]) * 180.0 / np.pi
@@ -142,7 +145,9 @@ METRICS = {
     "ear": 0.0, "mar": 0.0, "perclos": 0.0, "pitch": 0.0, "fusion": 0.0,
     "severity": "NORMAL", "blink_count": 0, "yawn_count": 0,
     "phone_detected": False, "new_alert_event": None, "fatigue_warning": "",
-    "drowsy_events": 0
+    "drowsy_events": 0,
+    "driver_recognized": "Unknown", "driver_confidence": 0.0,
+    "driver_profile_loaded": False
 }
 
 latest_jpeg = None
@@ -162,16 +167,29 @@ def read_profiles():
     return {}
 
 
+def create_face_landmarker():
+    """Create and configure FaceLandmarker for video mode."""
+    model_path = os.path.join(
+        os.path.dirname(__import__('mediapipe').__file__),
+        'tasks', 'python', 'vision', 'face_landmarker.task'
+    )
+    options = FaceLandmarkerOptions(
+        base_options=BaseOptions(model_asset_path=model_path),
+        running_mode=FaceLandmarkerOptions.running_mode.VIDEO,
+        num_faces=1,
+        min_face_detection_confidence=0.5,
+        min_face_presence_confidence=0.5,
+        min_tracking_confidence=0.5,
+        output_face_blendshapes=False,
+        output_facial_transformation_matrixes=False,
+    )
+    return FaceLandmarker.create_from_options(options)
+
+
 def detection_loop():
     global latest_jpeg, phone_model
 
-    face_mesh = mp_face_mesh_module.FaceMesh(
-        static_image_mode=False,
-        max_num_faces=1,
-        refine_landmarks=False,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5
-    )
+    face_landmarker = create_face_landmarker()
 
     # Use DirectShow backend on Windows for better reliability
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
@@ -180,11 +198,18 @@ def detection_loop():
     cap.set(cv2.CAP_PROP_FPS, 30)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
+    # Reset recognition state at start of new session
+    face_id.reset_recognition_state()
+
     calibrating = True
     calib_start_time = time.time()
     ear_samples, pitch_samples = [], []
     baseline_ear, baseline_pitch = 0.28, 0.0
     ear_threshold, pitch_down_threshold = 0.21, -15
+    recog_frame_counter = 0
+    recognized_driver = "Unknown"
+    driver_confidence = 0.0
+    profile_loaded = False
 
     frame_history = deque()
     ear_closed_since = None
@@ -207,6 +232,7 @@ def detection_loop():
     target_fps = 30
     frame_time = 1.0 / target_fps
     loop_start_time = time.time()
+    timestamp_ms = 0
 
     while True:
         ret, frame = cap.read()
@@ -219,6 +245,15 @@ def detection_loop():
                 calibrating = True
                 calib_start_time = time.time()
                 ear_samples, pitch_samples = [], []
+                # Reset recognition state on recalibration
+                face_id.reset_recognition_state()
+                recognized_driver = "Unknown"
+                driver_confidence = 0.0
+                profile_loaded = False
+                with lock:
+                    METRICS["driver_recognized"] = "Unknown"
+                    METRICS["driver_confidence"] = 0.0
+                    METRICS["driver_profile_loaded"] = False
                 RUNTIME["recalibrate_requested"] = False
 
         if get_brightness(frame) < 80:
@@ -226,29 +261,49 @@ def detection_loop():
 
         h, w, _ = frame.shape
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = face_mesh.process(rgb)
+        mp_image = Image(image_format=ImageFormat.SRGB, data=rgb)
+        timestamp_ms = int(time.time() * 1000)
+        results = face_landmarker.detect_for_video(mp_image, timestamp_ms)
         now = time.time()
 
         if calibrating:
             elapsed = now - calib_start_time
             remaining = max(0, int(CALIBRATION_SECONDS - elapsed))
 
-            if results.multi_face_landmarks:
-                landmarks = results.multi_face_landmarks[0].landmark
+            if results.face_landmarks:
+                landmarks = results.face_landmarks[0]
                 le = calculate_ear(landmarks, LEFT_EYE, w, h)
                 re = calculate_ear(landmarks, RIGHT_EYE, w, h)
                 ear_samples.append((le + re) / 2.0)
                 pitch, _, _ = get_head_pose(landmarks, w, h)
                 pitch_samples.append(pitch)
 
+                recog_frame_counter += 1
+                if recog_frame_counter % RECOG_INTERVAL_FRAMES == 0:
+                    name, conf, recognized = face_id.recognize_driver(frame)
+                    if recognized:
+                        recognized_driver = name
+                        driver_confidence = conf
+                        with lock:
+                            METRICS["driver_recognized"] = name
+                            METRICS["driver_confidence"] = conf
+
             cv2.putText(frame, "CALIBRATING...", (int(w * 0.2), int(h * 0.45)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 255), 2)
             cv2.putText(frame, f"Keep eyes open - {remaining}s left", (int(w * 0.08), int(h * 0.55)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            if recognized_driver != "Unknown":
+                cv2.putText(frame, f"Driver: {recognized_driver} ({driver_confidence:.1f})", (int(w * 0.08), int(h * 0.65)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            else:
+                cv2.putText(frame, "Driver: Unknown (enroll later)", (int(w * 0.08), int(h * 0.65)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 165, 255), 2)
 
             with lock:
                 METRICS["calibrating"] = True
                 METRICS["calib_remaining"] = remaining
+                METRICS["driver_recognized"] = recognized_driver
+                METRICS["driver_confidence"] = driver_confidence
             # Minimal lock scope - calibration metrics updated separately
 
             if elapsed >= CALIBRATION_SECONDS:
@@ -257,6 +312,19 @@ def detection_loop():
                 with lock:
                     ear_threshold = baseline_ear * RUNTIME["ear_baseline_ratio"]
                 pitch_down_threshold = baseline_pitch - PITCH_BASELINE_OFFSET
+
+                if recognized_driver != "Unknown" and not profile_loaded:
+                    profiles = read_profiles()
+                    if recognized_driver in profiles:
+                        p = profiles[recognized_driver]
+                        baseline_ear = p.get("baseline_ear", baseline_ear)
+                        baseline_pitch = p.get("baseline_pitch", baseline_pitch)
+                        ear_threshold = p.get("ear_threshold", ear_threshold)
+                        pitch_down_threshold = p.get("pitch_down_threshold", pitch_down_threshold)
+                        profile_loaded = True
+                        with lock:
+                            METRICS["driver_profile_loaded"] = True
+
                 calibrating = False
 
             _, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
@@ -299,14 +367,35 @@ def detection_loop():
         new_event = None
 
         face_detected = False
-        if results.multi_face_landmarks:
+        if results.face_landmarks:
             face_detected = True
-            landmarks = results.multi_face_landmarks[0].landmark
+            landmarks = results.face_landmarks[0]
             le = calculate_ear(landmarks, LEFT_EYE, w, h)
             re = calculate_ear(landmarks, RIGHT_EYE, w, h)
             ear = (le + re) / 2.0
             mar = calculate_mar(landmarks, w, h)
             pitch, _, _ = get_head_pose(landmarks, w, h)
+
+            if not profile_loaded:
+                recog_frame_counter += 1
+                if recog_frame_counter % RECOG_INTERVAL_FRAMES == 0:
+                    name, conf, recognized = face_id.recognize_driver(frame)
+                    if recognized:
+                        recognized_driver = name
+                        driver_confidence = conf
+                        with lock:
+                            METRICS["driver_recognized"] = name
+                            METRICS["driver_confidence"] = conf
+                        profiles = read_profiles()
+                        if recognized_driver in profiles:
+                            p = profiles[recognized_driver]
+                            baseline_ear = p.get("baseline_ear", baseline_ear)
+                            baseline_pitch = p.get("baseline_pitch", baseline_pitch)
+                            ear_threshold = p.get("ear_threshold", ear_threshold)
+                            pitch_down_threshold = p.get("pitch_down_threshold", pitch_down_threshold)
+                            profile_loaded = True
+                            with lock:
+                                METRICS["driver_profile_loaded"] = True
 
             is_closed = ear < ear_threshold
             if is_closed:
@@ -411,7 +500,9 @@ def detection_loop():
                 "phone_detected": phone_detected, "new_alert_event": new_event,
                 "fatigue_warning": fatigue_warning, "drowsy_events": drowsy_events,
                 "baseline_ear": baseline_ear, "ear_threshold": ear_threshold,
-                "baseline_pitch": baseline_pitch, "pitch_down_threshold": pitch_down_threshold
+                "baseline_pitch": baseline_pitch, "pitch_down_threshold": pitch_down_threshold,
+                "driver_recognized": recognized_driver, "driver_confidence": driver_confidence,
+                "driver_profile_loaded": profile_loaded
             }
         with lock:
             METRICS.update(metrics_update)
@@ -489,7 +580,35 @@ def save_profile_route():
     }
     with open(PROFILES_PATH, "w") as f:
         json.dump(profiles, f, indent=2)
+    # Also save to face_id calibration store for auto-load on recognition
+    face_id.save_driver_calibration(name, {
+        "baseline_ear": m.get("baseline_ear", 0.28),
+        "baseline_pitch": m.get("baseline_pitch", 0.0),
+        "ear_threshold": m.get("ear_threshold", 0.21),
+        "pitch_down_threshold": m.get("pitch_down_threshold", -15)
+    })
     return jsonify({"ok": True})
+
+
+@app.route("/enroll_driver", methods=["POST"])
+def enroll_driver_route():
+    name = (request.json or {}).get("name", "").strip()
+    if not name:
+        return jsonify({"ok": False, "error": "No name given"})
+
+    def enroll_task():
+        success = face_id.enroll_driver(name, num_samples=20)
+        return success
+
+    thread = threading.Thread(target=enroll_task, daemon=True)
+    thread.start()
+    return jsonify({"ok": True, "message": f"Enrollment started for {name}"})
+
+
+@app.route("/known_drivers", methods=["GET"])
+def known_drivers_route():
+    drivers = face_id.get_known_drivers()
+    return jsonify({"drivers": drivers})
 
 
 @app.route("/download_csv")
@@ -502,9 +621,6 @@ def download_csv():
                           "fusion_score", "severity", "blink_count", "phone_detected", "ground_truth"])
         writer.writerows(log_rows)
     return send_file(csv_path, as_attachment=True)
-
-
-
 
 
 @app.route("/")

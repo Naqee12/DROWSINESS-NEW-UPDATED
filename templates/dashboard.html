@@ -240,6 +240,9 @@
               <button id="save-profile-btn" class="btn btn-secondary">Save Profile</button>
             </div>
             <div class="control-row">
+              <span id="driver-recognition-status" class="driver-recognition-status" aria-live="polite"></span>
+            </div>
+            <div class="control-row">
               <a id="download-csv" href="/download_csv" class="btn btn-secondary" download>Download CSV</a>
             </div>
           </div>
@@ -250,6 +253,29 @@
 
   <!-- Toast Container -->
   <div id="toast-container" class="toast-container" aria-live="polite" aria-label="Notifications"></div>
+
+  <!-- Enrollment Modal -->
+  <div id="enroll-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="enroll-modal-title" hidden>
+    <div class="modal-backdrop" tabindex="-1"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="enroll-modal-title">New Driver Detected</h2>
+        <button class="modal-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>The system doesn't recognize the current driver. Would you like to enroll as a new driver?</p>
+        <div class="control-row">
+          <label for="enroll-name" class="visually-hidden">Your name</label>
+          <input type="text" id="enroll-name" placeholder="Enter your name" aria-label="Driver name for enrollment">
+        </div>
+        <p class="enroll-hint">Look at the camera during enrollment. The system will capture 20 face samples.</p>
+      </div>
+      <div class="modal-footer">
+        <button id="enroll-cancel" class="btn btn-secondary">Skip (Guest)</button>
+        <button id="enroll-start" class="btn btn-primary">Start Enrollment</button>
+      </div>
+    </div>
+  </div>
 
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
